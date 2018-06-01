@@ -33,7 +33,6 @@ import org.gradle.api.provider.Provider;
 import org.gradle.api.specs.Spec;
 import org.gradle.api.specs.Specs;
 import org.gradle.internal.Cast;
-import org.gradle.internal.ImmutableActionSet;
 import org.gradle.internal.metaobject.AbstractDynamicObject;
 import org.gradle.internal.metaobject.DynamicInvokeResult;
 import org.gradle.internal.metaobject.DynamicObject;
@@ -70,7 +69,7 @@ public class DefaultNamedDomainObjectCollection<T> extends DefaultDomainObjectCo
 
     private final List<Rule> rules = new ArrayList<Rule>();
     private final Set<String> applyingRulesFor = new HashSet<String>();
-    private ImmutableActionSet<ElementInfo<T>> whenKnown = ImmutableActionSet.empty();
+    private MutableActionSet<ElementInfo<T>> whenKnown = new MutableActionSet<ElementInfo<T>>();
 
     public DefaultNamedDomainObjectCollection(Class<? extends T> type, ElementSource<T> store, Instantiator instantiator, Namer<? super T> namer) {
         super(type, store);
@@ -139,7 +138,7 @@ public class DefaultNamedDomainObjectCollection<T> extends DefaultDomainObjectCo
     }
 
     public void whenElementKnown(Action<? super ElementInfo<T>> action) {
-        whenKnown = whenKnown.add(action);
+        whenKnown.add(action);
         Iterator<T> iterator = iteratorNoFlush();
         while (iterator.hasNext()) {
             T next = iterator.next();
@@ -663,6 +662,24 @@ public class DefaultNamedDomainObjectCollection<T> extends DefaultDomainObjectCo
         @Override
         public Class<?> getType() {
             return ((ProviderInternal<?>) provider).getType();
+        }
+    }
+
+    private static class MutableActionSet<T> implements Action<T> {
+        private final List<Action<? super T>> actions = new ArrayList<Action<? super T>>();
+
+        public void add(Action<? super T> action) {
+            actions.add(action);
+        }
+
+        public void execute(T t) {
+            for (Action<? super T> action : actions) {
+                action.execute(t);
+            }
+        }
+
+        public boolean isEmpty() {
+            return actions.isEmpty();
         }
     }
 }
